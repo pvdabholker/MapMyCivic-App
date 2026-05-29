@@ -1,0 +1,6 @@
+open pgadmin4
+click on server 
+click on PostgreSQL 18 if 2 then first open
+go to Databases
+right click- create
+u will get a form only write the name of the project.

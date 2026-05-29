@@ -1,0 +1,778 @@
+from ultralytics import YOLO
+import cv2
+
+# =====================================================
+# LOAD ALL MODELS
+# =====================================================
+
+MODELS = {
+
+    "Potholes": YOLO(
+        "app/models/best.pt",
+        task="detect"
+    ),
+
+    "Garbage": YOLO(
+        "app/models/garbage.pt",
+        task="detect"
+    ),
+
+    "Water Logging": YOLO(
+        "app/models/road-flood.pt",
+        task="detect"
+    ),
+
+    # "Damaged Sign Board": YOLO(
+    #     "app/models/damaged_sign_final_v3.pt",
+    #     task="detect"
+    # )
+}
+
+# =====================================================
+# MODEL CONFIDENCE THRESHOLDS
+# =====================================================
+
+MODEL_THRESHOLDS = {
+
+    "Potholes": 0.60,
+
+    "Garbage": 0.60,
+
+    "Water Logging": 0.60,
+
+    # "Damaged Sign Board": 0.75
+}
+
+# =====================================================
+# MINIMUM BOUNDING BOX AREA
+# Removes tiny false detections
+# =====================================================
+
+MIN_BOX_AREA = 0
+
+# =====================================================
+# VIDEO VALIDATION SETTINGS
+# =====================================================
+
+MIN_DETECTION_FRAMES = 5
+
+MIN_DETECTION_RATIO = 0.30
+
+# =====================================================
+# COLORS FOR EACH ISSUE
+# BGR FORMAT
+# =====================================================
+
+COLORS = {
+
+    "Potholes": (0, 0, 255),
+
+    "Garbage": (0, 255, 0),
+
+    "Water Logging": (255, 0, 0),
+
+    # "Damaged Sign Board": (0, 255, 255)
+}
+
+# =====================================================
+# SEVERITY CALCULATION
+# =====================================================
+
+def get_severity(box_area, img_area):
+
+    ratio = box_area / img_area
+
+    if ratio < 0.05:
+
+        return "low"
+
+    elif ratio < 0.15:
+
+        return "medium"
+
+    else:
+
+        return "critical"
+
+
+# =====================================================
+# DRAW DETECTIONS ON FRAME
+# =====================================================
+
+def draw_detections(frame, detections):
+
+    for detection in detections:
+
+        x1 = detection["x1"]
+        y1 = detection["y1"]
+        x2 = detection["x2"]
+        y2 = detection["y2"]
+
+        issue_type = detection["issue_type"]
+
+        confidence = detection["confidence"]
+
+        severity = detection["severity"]
+
+        color = COLORS.get(
+            issue_type,
+            (255, 255, 255)
+        )
+
+        label = (
+            f"{issue_type} | "
+            f"{confidence:.2f} | "
+            f"{severity}"
+        )
+
+        # =============================================
+        # DRAW RECTANGLE
+        # =============================================
+
+        cv2.rectangle(
+
+            frame,
+
+            (x1, y1),
+
+            (x2, y2),
+
+            color,
+
+            2
+        )
+
+        # =============================================
+        # DRAW LABEL BACKGROUND
+        # =============================================
+
+        (text_width, text_height), _ = cv2.getTextSize(
+
+            label,
+
+            cv2.FONT_HERSHEY_SIMPLEX,
+
+            0.6,
+
+            2
+        )
+
+        cv2.rectangle(
+
+            frame,
+
+            (x1, y1 - text_height - 10),
+
+            (x1 + text_width, y1),
+
+            color,
+
+            -1
+        )
+
+        # =============================================
+        # DRAW TEXT
+        # =============================================
+
+        cv2.putText(
+
+            frame,
+
+            label,
+
+            (x1, y1 - 5),
+
+            cv2.FONT_HERSHEY_SIMPLEX,
+
+            0.6,
+
+            (0, 0, 0),
+
+            2
+        )
+
+    return frame
+
+
+# =====================================================
+# RUN ALL MODELS ON FRAME
+# =====================================================
+
+def run_all_models(frame):
+
+    detections = []
+
+    h, w = frame.shape[:2]
+
+    img_area = h * w
+
+    # =================================================
+    # RUN EACH MODEL
+    # =================================================
+
+    for issue_type, model in MODELS.items():
+
+        threshold = MODEL_THRESHOLDS[issue_type]
+
+        print(f"\n🚀 RUNNING MODEL: {issue_type}")
+
+        # =============================================
+        # MODEL PREDICTION
+        # =============================================
+
+        results = model.predict(
+
+            source=frame,
+
+            conf=threshold,
+
+            iou=0.4,
+
+            augment=True,
+
+            verbose=False
+        )
+
+        # =============================================
+        # NO RESULTS
+        # =============================================
+
+        if not results:
+
+            continue
+
+        if results[0].boxes is None:
+
+            continue
+
+        if len(results[0].boxes) == 0:
+
+            continue
+
+        # =============================================
+        # PROCESS BOXES
+        # =============================================
+
+        for box in results[0].boxes:
+
+            conf = float(box.conf[0])
+
+            if conf < threshold:
+
+                continue
+
+            # =========================================
+            # BOX COORDINATES
+            # =========================================
+
+            x1, y1, x2, y2 = box.xyxy[0]
+
+            x1 = int(x1)
+            y1 = int(y1)
+            x2 = int(x2)
+            y2 = int(y2)
+
+            # =========================================
+            # BOX AREA
+            # =========================================
+
+            box_area = (x2 - x1) * (y2 - y1)
+
+            # =========================================
+            # REMOVE SMALL FALSE DETECTIONS
+            # =========================================
+
+            if box_area < MIN_BOX_AREA:
+
+                print(
+
+                    f"❌ SMALL DETECTION REMOVED | "
+
+                    f"{issue_type} | "
+
+                    f"AREA: {box_area}"
+                )
+
+                continue
+
+            # =========================================
+            # SEVERITY
+            # =========================================
+
+            severity = get_severity(
+
+                box_area,
+
+                img_area
+            )
+
+            # =========================================
+            # PRINT DETECTION
+            # =========================================
+
+            print(
+
+                f"✅ DETECTED: {issue_type} | "
+
+                f"CONF: {conf:.2f} | "
+
+                f"AREA: {box_area} | "
+
+                f"SEVERITY: {severity}"
+            )
+
+            # =========================================
+            # SAVE DETECTION
+            # =========================================
+
+            detections.append({
+
+                "issue_type": issue_type,
+
+                "severity": severity,
+
+                "confidence": round(conf, 2),
+
+                "box_area": int(box_area),
+
+                "x1": x1,
+
+                "y1": y1,
+
+                "x2": x2,
+
+                "y2": y2
+            })
+
+    return detections
+
+
+# =====================================================
+# VALIDATE IMAGE / VIDEO
+# =====================================================
+
+def validate_image(input_data):
+
+    """
+    Handles:
+    - image path (string)
+    - list of frames (video)
+    """
+
+    # =================================================
+    # IMAGE CASE
+    # =================================================
+
+    if isinstance(input_data, str):
+
+        print("\n🖼 VALIDATING IMAGE")
+
+        frame = cv2.imread(input_data)
+
+        if frame is None:
+
+            raise Exception("Unable to read image")
+
+        detections = run_all_models(frame)
+
+        if len(detections) > 0:
+
+            print("✅ VALID ISSUE DETECTED")
+
+            return True
+
+        print("❌ NO VALID ISSUE FOUND")
+
+        return False
+
+    # =================================================
+    # VIDEO CASE
+    # =================================================
+
+    elif isinstance(input_data, list):
+
+        print("\n🎥 VALIDATING VIDEO")
+
+        if len(input_data) == 0:
+
+            raise Exception("No frames provided")
+
+        frames_with_detection = 0
+
+        total_frames = len(input_data)
+
+        # =================================================
+        # PROCESS EACH FRAME
+        # =================================================
+
+        for index, frame in enumerate(input_data):
+
+            print(f"\n📦 PROCESSING FRAME {index + 1}")
+
+            detections = run_all_models(frame)
+
+            if len(detections) > 0:
+
+                frames_with_detection += 1
+
+        # =================================================
+        # DETECTION STATS
+        # =================================================
+
+        detection_ratio = (
+
+            frames_with_detection / total_frames
+        )
+
+        print(
+
+            f"\n📊 DETECTION STATS:\n"
+
+            f"Frames With Detection: "
+            f"{frames_with_detection}/{total_frames}\n"
+
+            f"Detection Ratio: "
+            f"{detection_ratio:.2f}"
+        )
+
+        # =================================================
+        # VIDEO VALIDATION
+        # =================================================
+
+        is_valid = (
+
+            frames_with_detection >= MIN_DETECTION_FRAMES
+
+            or
+
+            detection_ratio >= MIN_DETECTION_RATIO
+        )
+
+        if is_valid:
+
+            print("✅ VALID VIDEO")
+
+        else:
+
+            print("❌ INVALID VIDEO")
+
+        return is_valid
+
+    # =================================================
+    # INVALID INPUT
+    # =================================================
+
+    else:
+
+        raise Exception("Invalid input type")
+
+
+# =====================================================
+# DETECT ISSUES IN IMAGE
+# =====================================================
+
+def detect_issue_and_severity(image_path):
+
+    print("\n🖼 DETECTING IMAGE ISSUES")
+
+    frame = cv2.imread(image_path)
+
+    if frame is None:
+
+        raise Exception("Unable to read image")
+
+    detections = run_all_models(frame)
+
+    # =================================================
+    # NO DETECTIONS
+    # =================================================
+
+    if len(detections) == 0:
+
+        print("❌ NO ISSUE DETECTED")
+
+        return {
+
+            "issue_type": "Unknown",
+
+            "severity": "low"
+        }
+
+    # =================================================
+    # DRAW DETECTIONS
+    # =================================================
+
+    annotated_frame = draw_detections(
+
+        frame.copy(),
+
+        detections
+    )
+
+    # =================================================
+    # SAVE OUTPUT IMAGE
+    # =================================================
+
+    output_path = "output_detection.jpg"
+
+    cv2.imwrite(
+
+        output_path,
+
+        annotated_frame
+    )
+
+    print(f"\n💾 OUTPUT SAVED: {output_path}")
+
+    # =================================================
+    # SHOW OUTPUT IMAGE
+    # =================================================
+
+    cv2.imshow(
+
+        "Detected Issues",
+
+        annotated_frame
+    )
+
+    cv2.waitKey(0)
+
+    cv2.destroyAllWindows()
+
+    # =================================================
+    # BEST DETECTION
+    # =================================================
+
+    best_detection = max(
+
+        detections,
+
+        key=lambda d: d["confidence"]
+    )
+
+    print("\n✅ BEST DETECTION")
+
+    print(best_detection)
+
+    return {
+
+        "issue_type": best_detection["issue_type"],
+
+        "severity": best_detection["severity"]
+    }
+
+
+# =====================================================
+# DETECT ISSUES IN VIDEO
+# =====================================================
+
+def detect_video_issues_and_severity(frames):
+
+    print("\n🎥 DETECTING VIDEO ISSUES")
+
+    severity_order = {
+
+        "low": 1,
+
+        "medium": 2,
+
+        "critical": 3
+    }
+
+    detected_issues = {}
+
+    # =================================================
+    # VIDEO WRITER SETTINGS
+    # =================================================
+
+    height, width = frames[0].shape[:2]
+
+    output_video = cv2.VideoWriter(
+
+        "output_video.mp4",
+
+        cv2.VideoWriter_fourcc(*'mp4v'),
+
+        20,
+
+        (width, height)
+    )
+
+    # =================================================
+    # PROCESS FRAMES
+    # =================================================
+
+    for frame_index, frame in enumerate(frames):
+
+        print(
+
+            f"\n📦 ANALYZING FRAME "
+            f"{frame_index + 1}"
+        )
+
+        detections = run_all_models(frame)
+
+        # =============================================
+        # DRAW DETECTIONS
+        # =============================================
+
+        annotated_frame = draw_detections(
+
+            frame.copy(),
+
+            detections
+        )
+
+        # =============================================
+        # WRITE FRAME TO VIDEO
+        # =============================================
+
+        output_video.write(
+
+            annotated_frame
+        )
+
+        # =============================================
+        # SHOW LIVE VIDEO
+        # =============================================
+
+        cv2.imshow(
+
+            "Video Detection",
+
+            annotated_frame
+        )
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+
+            break
+
+        # =============================================
+        # PROCESS DETECTIONS
+        # =============================================
+
+        for detection in detections:
+
+            issue_type = detection["issue_type"]
+
+            severity = detection["severity"]
+
+            confidence = detection["confidence"]
+
+            print(
+
+                f"📌 ISSUE: {issue_type} | "
+
+                f"CONF: {confidence} | "
+
+                f"SEVERITY: {severity}"
+            )
+
+            # =========================================
+            # FIRST DETECTION
+            # =========================================
+
+            if issue_type not in detected_issues:
+
+                detected_issues[issue_type] = {
+
+                    "severity": severity,
+
+                    "confidence": confidence
+                }
+
+            else:
+
+                current_severity = (
+                    detected_issues[issue_type]["severity"]
+                )
+
+                current_confidence = (
+                    detected_issues[issue_type]["confidence"]
+                )
+
+                # =====================================
+                # KEEP HIGHEST SEVERITY
+                # =====================================
+
+                if (
+
+                    severity_order[severity]
+
+                    >
+
+                    severity_order[current_severity]
+                ):
+
+                    detected_issues[issue_type] = {
+
+                        "severity": severity,
+
+                        "confidence": confidence
+                    }
+
+                # =====================================
+                # SAME SEVERITY KEEP HIGHER CONF
+                # =====================================
+
+                elif (
+
+                    severity == current_severity
+
+                    and
+
+                    confidence > current_confidence
+                ):
+
+                    detected_issues[issue_type] = {
+
+                        "severity": severity,
+
+                        "confidence": confidence
+                    }
+
+    # =================================================
+    # RELEASE VIDEO
+    # =================================================
+
+    output_video.release()
+
+    cv2.destroyAllWindows()
+
+    print("\n💾 OUTPUT VIDEO SAVED: output_video.mp4")
+
+    # =================================================
+    # FINAL RESULTS
+    # =================================================
+
+    final_results = []
+
+    for issue, data in detected_issues.items():
+
+        final_results.append({
+
+            "issue_type": issue,
+
+            "severity": data["severity"]
+        })
+
+    # =================================================
+    # FALLBACK
+    # =================================================
+
+    if len(final_results) == 0:
+
+        print("❌ NO ISSUES FOUND")
+
+        return [{
+
+            "issue_type": "Unknown",
+
+            "severity": "low"
+        }]
+
+    print("\n✅ FINAL VIDEO RESULTS")
+
+    print(final_results)
+
+    return final_results

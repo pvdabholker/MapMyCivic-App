@@ -1,0 +1,11 @@
+# STEP 1: Start Backend
+cd backend
+env\Scripts\activate
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# STEP 2: Start ngrok (open NEW terminal)
+cd path\to\ngrok
+ngrok http 8000
+
+# STEP 3: Start Frontend (open NEW terminal)
+npx expo start

@@ -1,0 +1,30 @@
+🚀 OVERALL BUILD FLOW (IMPORTANT — FOLLOW THIS EXACTLY)
+
+We will build in this order:
+
+✅ Phase 1: Setup (NOW)
+Virtual environment
+Install dependencies
+Basic FastAPI app running
+Test with Insomnia
+✅ Phase 2: Database
+PostgreSQL setup
+SQLAlchemy connection
+Test DB connection
+✅ Phase 3: Auth (Login/Signup)
+User model
+Signup API
+Login API (JWT)
+Test with Insomnia
+✅ Phase 4: Reports (CORE)
+Image upload (Cloudinary)
+Report API
+🔥 ML placeholder integration
+Test
+✅ Phase 5: Dashboard + Notices
+Stats API
+Fetch notices from web backend
+✅ Phase 6: Final polish
+Error handling
+Validation
+Clean responses

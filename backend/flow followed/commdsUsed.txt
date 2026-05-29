@@ -1,0 +1,17 @@
+PS D:\MapMyCivic-App\backend> python -m venv env
+
+PS D:\MapMyCivic-App\backend> env\Scripts\activate
+
+(env) PS D:\MapMyCivic-App\backend> pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv pydantic passlib[bcrypt] python-jose cloudinary python-multipart
+
+(env) PS D:\MapMyCivic-App\backend> pip install alembic
+
+(env) PS D:\MapMyCivic-App\backend> pip freeze > requirements.txt
+
+(env) PS D:\MapMyCivic-App\backend> pip uninstall bcrypt -y
+
+(env) PS D:\MapMyCivic-App\backend> pip install bcrypt==4.0.1
+
+(env) PS D:\MapMyCivic-App\backend> uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+(env) PS D:\MapMyCivic-App\backend> uvicorn app.main:app --reload 

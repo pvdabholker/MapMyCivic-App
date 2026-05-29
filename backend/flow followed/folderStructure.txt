@@ -1,0 +1,51 @@
+backend/
+│
+├── app/
+│   ├── main.py                 # Entry point (FastAPI app, routes include)
+│   ├── config/
+│   │   └── settings.py         # Environment variables (DB URL, JWT secret, cloud keys)
+│   │
+│   ├── db/
+│   │   ├── database.py         # DB connection setup (SQLAlchemy engine, session)
+│   │   └── base.py             # Base model (declarative base)
+│   │
+│   ├── models/                 # DB tables (PostgreSQL structure)
+│   │   ├── user_model.py
+│   │   ├── report_model.py
+│   │   └── notice_model.py     # (Read-only from web backend)
+│   │
+│   ├── schemas/                # Request & Response validation (Pydantic)
+│   │   ├── user_schema.py
+│   │   ├── auth_schema.py
+│   │   ├── report_schema.py
+│   │   └── notice_schema.py
+│   │
+│   ├── routes/                 # API endpoints
+│   │   ├── auth_routes.py      # login, signup
+│   │   ├── user_routes.py      # profile related
+│   │   ├── report_routes.py    # create report, get reports
+│   │   ├── notice_routes.py    # fetch notices from web backend
+│   │   └── dashboard_routes.py # counts (total, resolved, etc.)
+│   │
+│   ├── services/               # Business logic (IMPORTANT)
+│   │   ├── auth_service.py
+│   │   ├── user_service.py
+│   │   ├── report_service.py
+│   │   ├── notice_service.py
+│   │   └── dashboard_service.py
+│   │
+│   ├── utils/
+│   │   ├── security.py         # JWT, password hashing
+│   │   ├── cloudinary.py       # image upload logic
+│   │   └── helpers.py
+│   │
+│   ├── ml/                    # 🔥 FUTURE MODEL INTEGRATION
+│   │   └── classifier.py      # <-- HERE YOU WILL ADD POTHOLE MODEL
+│   │
+│   └── dependencies/
+│       └── auth_dependency.py # JWT auth middleware
+│
+├── migrations/                # Alembic (DB migrations)
+├── .env                       # secrets
+├── requirements.txt
+└── README.md
