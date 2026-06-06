@@ -233,11 +233,10 @@ async def create_report(
                     detail="Invalid report (no civic issue detected)"
                 )
 
-            prediction = detect_issue_and_severity(
+            predictions = detect_issue_and_severity(
                 temp_path
             )
 
-            predictions = [prediction]
 
         print("✅ AI VALIDATION PASSED")
 

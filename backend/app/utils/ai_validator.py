@@ -1,19 +1,10 @@
 from ultralytics import YOLO
 import cv2
-from transformers import pipeline
-from PIL import Image
+
 
 # =====================================================
 # LOAD ALL MODELS
 # =====================================================
-# =====================================================
-# AI IMAGE DETECTOR
-# =====================================================
-
-ai_classifier = pipeline(
-    "image-classification",
-    model="app/utils"
-)
 
 
 MODELS = {
@@ -48,7 +39,7 @@ MODEL_THRESHOLDS = {
 
     "Potholes": 0.60,
 
-    "Garbage": 0.60,
+    "Garbage": 0.35,
 
     "Water Logging": 0.60,
 
@@ -380,72 +371,11 @@ def validate_image(input_data):
 
         print("\n🖼 VALIDATING IMAGE")
 
-        # =============================================
-        # READ IMAGE
-        # =============================================
-
         frame = cv2.imread(input_data)
 
         if frame is None:
 
             raise Exception("Unable to read image")
-
-        # =============================================
-        # AI IMAGE DETECTION
-        # =============================================
-
-        try:
-
-            pil_image = Image.open(input_data)
-
-            ai_results = ai_classifier(pil_image)
-
-            print("\n🤖 AI DETECTION RESULTS")
-
-            print(ai_results)
-
-            top_result = ai_results[0]
-
-            label = top_result["label"].lower()
-
-            score = float(top_result["score"])
-
-            print(
-
-                f"\n🧠 AI CHECK => "
-                f"LABEL: {label} | "
-                f"SCORE: {score:.2f}"
-            )
-
-            # =========================================
-            # REJECT AI GENERATED IMAGE
-            # =========================================
-
-            if (
-
-                "fake" in label
-
-                or
-
-                "ai" in label
-
-                or
-
-                "generated" in label
-
-            ) and score >= 0.90:
-
-                print("\n❌ AI GENERATED IMAGE DETECTED")
-
-                return False
-
-        except Exception as ai_error:
-
-            print(
-
-                f"\n⚠️ AI DETECTION FAILED: "
-                f"{str(ai_error)}"
-            )
 
         # =============================================
         # NORMAL YOLO DETECTION
@@ -544,7 +474,6 @@ def validate_image(input_data):
 
         raise Exception("Invalid input type")
 
-
 # =====================================================
 # DETECT ISSUES IN IMAGE
 # =====================================================
@@ -556,7 +485,6 @@ def detect_issue_and_severity(image_path):
     frame = cv2.imread(image_path)
 
     if frame is None:
-
         raise Exception("Unable to read image")
 
     detections = run_all_models(frame)
@@ -569,21 +497,23 @@ def detect_issue_and_severity(image_path):
 
         print("❌ NO ISSUE DETECTED")
 
-        return {
+        return []
 
-            "issue_type": "Unknown",
+    # =================================================
+    # PRINT ALL DETECTIONS
+    # =================================================
 
-            "severity": "low"
-        }
+    print("\n📌 ALL DETECTIONS")
+
+    for d in detections:
+        print(d)
 
     # =================================================
     # DRAW DETECTIONS
     # =================================================
 
     annotated_frame = draw_detections(
-
         frame.copy(),
-
         detections
     )
 
@@ -594,9 +524,7 @@ def detect_issue_and_severity(image_path):
     output_path = "output_detection.jpg"
 
     cv2.imwrite(
-
         output_path,
-
         annotated_frame
     )
 
@@ -607,9 +535,7 @@ def detect_issue_and_severity(image_path):
     # =================================================
 
     cv2.imshow(
-
         "Detected Issues",
-
         annotated_frame
     )
 
@@ -618,35 +544,53 @@ def detect_issue_and_severity(image_path):
     cv2.destroyAllWindows()
 
     # =================================================
-    # BEST DETECTION
+    # REMOVE DUPLICATES
+    # KEEP HIGHEST CONFIDENCE FOR EACH ISSUE
     # =================================================
 
-    best_detection = max(
+    unique_issues = {}
 
-        detections,
+    for detection in detections:
 
-        key=lambda d: d["confidence"]
-    )
+        issue_type = detection["issue_type"]
 
-    print("\n✅ BEST DETECTION")
+        if issue_type not in unique_issues:
 
-    print(best_detection)
+            unique_issues[issue_type] = detection
 
-    return {
+        else:
 
-        "issue_type": best_detection["issue_type"],
+            existing_conf = unique_issues[issue_type]["confidence"]
 
-        "severity": best_detection["severity"]
-    }
+            if detection["confidence"] > existing_conf:
 
+                unique_issues[issue_type] = detection
 
+    # =================================================
+    # FINAL RESULTS
+    # =================================================
+
+    final_results = []
+
+    for issue_type, detection in unique_issues.items():
+
+        final_results.append({
+
+            "issue_type": issue_type,
+
+            "severity": detection["severity"]
+        })
+
+    print("\n✅ FINAL IMAGE RESULTS")
+
+    print(final_results)
+
+    return final_results
 # =====================================================
 # DETECT ISSUES IN VIDEO
 # =====================================================
 
-# =====================================================
-# DETECT ISSUES IN VIDEO
-# =====================================================
+#
 
 def detect_video_issues_and_severity(frames):
 

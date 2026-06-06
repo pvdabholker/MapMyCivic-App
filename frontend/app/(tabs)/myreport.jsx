@@ -369,15 +369,16 @@ const handleDelete = async (id) => {
   }
 };
 const formatDate = (dateString) => {
+
   if (!dateString) return "No Date";
 
   try {
-    // ✅ convert DB format → ISO format
-    const fixed = dateString.replace(" ", "T");
 
-    const date = new Date(fixed);
+    const date = new Date(dateString);
 
-    if (isNaN(date)) return "Invalid Date";
+    if (isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
 
     return date.toLocaleString("en-IN", {
       day: "2-digit",
@@ -387,7 +388,10 @@ const formatDate = (dateString) => {
       minute: "2-digit",
     });
 
-  } catch {
+  } catch (err) {
+
+    console.log("Date Error:", err);
+
     return "Invalid Date";
   }
 };
@@ -422,9 +426,6 @@ useFocusEffect(
 
           {/* ================= MY REPORTS ================= */}
 
-<Text style={[styles.sectionTitle, { marginTop: 30 }]}>
-  My Reports
-</Text>
 
 {reports.length === 0 ? (
   <Text style={{ color: "#6B7280", marginBottom: 20 }}>

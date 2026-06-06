@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "./storage";
 
 const API = axios.create({
-  baseURL: "http://10.187.29.33:8000",
+  baseURL: "http://10.216.222.33:8000",
   timeout: 300000, // 🔥 increased for video + ML processing
 });
 

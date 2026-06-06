@@ -19,7 +19,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { Alert } from "react-native";
+import { Alert , Keyboard } from "react-native";
 import { Camera } from "expo-camera";
 import * as MediaLibrary from "expo-media-library";
 import { useFocusEffect } from "@react-navigation/native";
@@ -366,7 +366,9 @@ const stopRecording = async () => {
 const verifyManualLocation = async () => {
 
   if (!manualLocation.trim()) {
+
     Alert.alert("Enter location");
+
     return;
   }
 
@@ -374,32 +376,65 @@ const verifyManualLocation = async () => {
 
     setLoadingLocation(true);
 
-    // search typed location
-    const result = await Location.geocodeAsync(
-      manualLocation
-    );
+    // =====================================
+    // CHECK LOCATION PERMISSION
+    // =====================================
 
-    // no result found
+    const { status } =
+      await Location.requestForegroundPermissionsAsync();
+
+    if (status !== "granted") {
+
+      Alert.alert(
+        "Location Permission Required",
+        "Please allow location access to verify location."
+      );
+
+      setLoadingLocation(false);
+
+      return;
+    }
+
+    // =====================================
+    // CONVERT TEXT → COORDINATES
+    // =====================================
+
+    const result =
+      await Location.geocodeAsync(
+        manualLocation
+      );
+
+    // =====================================
+    // NO RESULT
+    // =====================================
+
     if (result.length === 0) {
+
       Alert.alert(
         "Invalid Location ❌",
         "Location not found"
       );
 
       setLoadingLocation(false);
+
       return;
     }
 
-    // first valid result
+    // =====================================
+    // FIRST MATCH
+    // =====================================
+
     const loc = result[0];
 
-    // save REAL coordinates
     setCoords({
       latitude: loc.latitude,
       longitude: loc.longitude,
     });
 
-    // get proper readable address
+    // =====================================
+    // GET PROPER ADDRESS
+    // =====================================
+
     const reverse =
       await Location.reverseGeocodeAsync({
         latitude: loc.latitude,
@@ -420,25 +455,31 @@ const verifyManualLocation = async () => {
 
     }
 
-    Alert.alert("Location Verified ✅");
+    Alert.alert(
+      "Location Verified ✅"
+    );
+
     setManualLocation("");
 
   } catch (err) {
 
-    console.log(err);
+    console.log(
+      "VERIFY LOCATION ERROR:",
+      err
+    );
 
     Alert.alert(
       "Location Error ❌",
       "Could not verify location"
     );
-
   }
 
   setLoadingLocation(false);
 };
+
   /* ---------- SUBMIT ---------- */
 const submitReport = async () => {
-
+  Keyboard.dismiss();
   if (!description || (!photo && !video)) {
     Alert.alert("Fill all fields");
     return;
@@ -523,13 +564,31 @@ formData.append("address", finalAddress);
 
     console.log("UPLOAD SUCCESS:", response.data);
 
-    Alert.alert("Report Submitted Successfully ✅");
+    Alert.alert(
+  "Success ✅",
+  "Report submitted successfully"
+);
 
-    await fetchMyReports();
+await fetchMyReports();
 
-    setPhoto(null);
-    setVideo(null);
-    setDescription("");
+// RESET EVERYTHING
+setPhoto(null);
+
+setVideo(null);
+
+setDescription("");
+
+setAddress("");
+
+setCoords(null);
+
+setManualLocation("");
+
+setCameraOpen(false);
+
+setMode(null);
+
+setSelectedImage(null);
 
   } catch (err) {
     console.log("FULL ERROR:", err);
@@ -867,6 +926,7 @@ useFocusEffect(
     >
 
       <TextInput
+      editable={!loading}
         placeholder="Enter your location"
         value={manualLocation}
         onChangeText={setManualLocation}
@@ -911,6 +971,7 @@ useFocusEffect(
           <Text style={styles.sectionTitle}>Description</Text>
           <TextInput
             style={styles.descriptionInput}
+            editable={!loading}
             placeholder="Describe issue..."
             value={description}
             onChangeText={setDescription}
@@ -919,7 +980,16 @@ useFocusEffect(
           />
 
           {/* SUBMIT */}
-         <TouchableOpacity style={styles.submitBtn} onPress={submitReport}>
+         <TouchableOpacity
+  style={[
+    styles.submitBtn,
+    loading && {
+      opacity: 0.6
+    }
+  ]}
+  onPress={submitReport}
+  disabled={loading}
+>
   {loading ? (
     <ActivityIndicator color="white" />
   ) : (
