@@ -148,48 +148,29 @@ export default function SignUp() {
       }
 
       const response =
-        await API.post(
-          "/auth/signup",
-          {
-            first_name:
-              form.firstName.trim(),
+        // 1. Signup
+await API.post("/auth/signup", {
+  first_name: form.firstName.trim(),
+  last_name: form.lastName.trim(),
+  username: form.username.trim(),
+  email_or_phone: form.emailOrPhone.trim(),
+  city: form.city.trim(),
+  area: form.area.trim(),
+  pincode: form.pincode.trim(),
+  password: form.password,
+});
 
-            last_name:
-              form.lastName.trim(),
+// 2. Login immediately
+const loginRes = await API.post("/auth/login", {
+  username: form.username.trim(),
+  password: form.password,
+});
 
-            username:
-              form.username.trim(),
+// 3. Save token
+await saveToken(loginRes.data.access_token);
 
-            email_or_phone:
-              form.emailOrPhone.trim(),
-
-            city:
-              form.city.trim(),
-
-            area:
-              form.area.trim(),
-
-            pincode:
-              form.pincode.trim(),
-
-            password:
-              form.password,
-          }
-        );
-
-      console.log(
-        "SIGNUP SUCCESS:",
-        response.data
-      );
-
-      Alert.alert(
-        "Success",
-        "Account created successfully"
-      );
-
-      router.replace(
-        "/onboarding/civicLens"
-      );
+// 4. Go to app
+router.replace("/onboarding/civicLens");
 
     } catch (error) {
 

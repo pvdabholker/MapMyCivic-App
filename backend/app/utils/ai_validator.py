@@ -37,11 +37,11 @@ MODELS = {
 
 MODEL_THRESHOLDS = {
 
-    "Potholes": 0.60,
+    "Potholes": 0.80,
 
-    "Garbage": 0.35,
+    "Garbage": 0.70,
 
-    "Water Logging": 0.60,
+    "Water Logging": 0.85,
 
     # "Damaged Sign Board": 0.75
 }
@@ -51,7 +51,7 @@ MODEL_THRESHOLDS = {
 # Removes tiny false detections
 # =====================================================
 
-MIN_BOX_AREA = 0
+MIN_BOX_AREA = 5000
 
 # =====================================================
 # VIDEO VALIDATION SETTINGS
@@ -233,7 +233,7 @@ def run_all_models(frame):
 
             iou=0.4,
 
-            augment=False,
+            augment=True,
 
             verbose=False
         )

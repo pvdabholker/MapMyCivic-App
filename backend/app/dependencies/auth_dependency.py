@@ -11,6 +11,8 @@ load_dotenv()
 # 🔐 Load from .env
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
+print("VERIFY SECRET:", SECRET_KEY)
+print("VERIFY ALGORITHM:", ALGORITHM)
 
 # 🔑 This extracts token from header
 security = HTTPBearer()
@@ -21,6 +23,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(payload)
         user_id = payload.get("user_id")
 
         if user_id is None:
@@ -35,5 +38,6 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
         return user  # return full user object
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    except JWTError as e:
+        print("JWT ERROR:", e)
+    raise HTTPException(status_code=401, detail="Invalid or expired token")
